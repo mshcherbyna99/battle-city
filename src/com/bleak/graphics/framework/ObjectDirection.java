@@ -1,9 +1,9 @@
 package com.bleak.graphics.framework;
 
 public enum ObjectDirection {
-	Left(),
-	Right(),
-	Up(),
-	Down(),
-	Undefined();
+    Left(),
+    Right(),
+    Up(),
+    Down(),
+    Undefined();
 }
