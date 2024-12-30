@@ -59,7 +59,7 @@ public class Game extends Canvas implements Runnable{
 		cam = new Camera(0,0);
 		
 		BufferedImageLoader loader = new BufferedImageLoader();
-		level = loader.loadImage("/level.png");// level loading		
+		level = loader.loadImage("/gfx/level.png");// level loading
 		LoadImageLevel(level);
 		
 		System.out.println("Blocks: " + handler.countObject(ObjectId.Block));
