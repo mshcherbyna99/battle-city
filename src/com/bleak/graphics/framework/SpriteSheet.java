@@ -4,15 +4,21 @@ import java.awt.image.BufferedImage;
 
 public class SpriteSheet {
 
-    private BufferedImage image;
+    private final BufferedImage image;
+    private final int width = 8;
+    private final int height = 8;
 
     public SpriteSheet(BufferedImage image) {
         this.image = image;
     }
 
     public BufferedImage grabImage(int col, int row, int width, int height) {
-        BufferedImage img = image.getSubimage((col * width) - width, (row * height) - height, width, height);
-        return img;
+        return image.getSubimage(
+            (col * this.width) - this.width,
+            (row * this.height) - this.height,
+            width,
+            height
+        );
     }
 
 }

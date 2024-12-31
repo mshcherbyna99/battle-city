@@ -15,15 +15,16 @@ import com.bleak.graphics.test.SFX;
 
 public class Bullet extends GameObject {
 
-    private float width = 32;
-    private float height = 32;
+    private final int width = 16;
+    private final int height = 16;
     protected ObjectDirection direction;
-    private Handler handler;
-
+    private final Handler handler;
     Texture tex = Game.getInstance();
+    private final long creationTime = System.currentTimeMillis();
 
     public Bullet(float x, float y, float velX, float velY, Handler handler, ObjectId id, ObjectDirection direction) {
         super(x, y, id);
+
         this.handler = handler;
         this.velX = velX;
         this.velY = velY;
@@ -36,43 +37,69 @@ public class Bullet extends GameObject {
         x += velX;
         y += velY;
 
+        if (System.currentTimeMillis() - creationTime > 5000) {
+            handler.removeObject(this);
+            return;
+        }
+
         Collision(object);
     }
 
     private void Collision(LinkedList<GameObject> object) {
-        boolean remove = false;
+        boolean isRemoved = false;
 
         for (int i = 0; i < handler.object.size(); i++) {
             GameObject tempObject = handler.object.get(i);
-
-            //if(tempObject.getId() == ObjectId.Block){
-            //if(getBounds().intersects(tempObject.getBounds())){
 
             if (getBounds().intersects(tempObject.getBounds())) {
                 if (tempObject.getId() == ObjectId.Block) {
                     SFX.EXPLODE.play();
 
-                    if (tempObject.type == 1) {
+                    System.out.println("Bullet collided with a block with type " + tempObject.type);
+
+                    if (tempObject.type == BlockType.Brick.getId()) {
                         handler.removeObject(tempObject);
                     }
 
-                    remove = true;
+                    isRemoved = true;
 
-                    handler.addObject(new Explosion(this.getX() - this.width / 2, this.getY() - this.height / 2, handler, 1));
+                    handler.addObject(
+                        new Explosion(
+                            this.getX() - this.width / 2.0f,
+                            this.getY() - this.height / 2.0f,
+                            handler,
+                            1
+                        )
+                    );
                 }
 
-                if (tempObject.getId() == ObjectId.Enemy) {
-                    SFX.RICHCHET.play();
-                    tempObject.health = tempObject.health - this.damage;
-                    remove = true;
-                    //handler.removeObject(tempObject);
+                if (tempObject instanceof Tank && tempObject.getId() != ObjectId.Player) {
+                    int healthRemains = tempObject.health - this.damage;
+
+                    if (healthRemains > 0) {
+                        tempObject.health = healthRemains;
+                        SFX.RICHCHET.play();
+                    } else {
+                        SFX.EXPLODE.play();
+                        handler.removeObject(tempObject);
+
+                        handler.addObject(
+                            new Explosion(
+                                this.getX() - this.width / 2.0f,
+                                this.getY() - this.height / 2.0f,
+                                handler,
+                                1
+                            )
+                        );
+                    }
+
+                    isRemoved = true;
                 }
             }
         }
 
-        if (remove) {
+        if (isRemoved) {
             handler.removeObject(this);
-            remove = false;
         }
     }
 

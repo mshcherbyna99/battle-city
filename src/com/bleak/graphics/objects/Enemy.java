@@ -1,153 +1,196 @@
 package com.bleak.graphics.objects;
 
-import java.awt.Graphics;
-import java.awt.Rectangle;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.LinkedList;
-//import java.util.Random;
-import com.bleak.graphics.framework.GameObject;
-import com.bleak.graphics.framework.ObjectDirection;
-import com.bleak.graphics.framework.ObjectId;
-import com.bleak.graphics.framework.Texture;
-import com.bleak.graphics.test.Animation;
+import java.util.List;
+
+import com.bleak.graphics.framework.*;
 import com.bleak.graphics.test.Game;
 import com.bleak.graphics.test.Handler;
-import com.bleak.graphics.test.SFX;
 
-public class Enemy extends GameObject {
-    private int width = 64;
-    private int height = 64;
-    private Handler handler;
-    private Animation enemyMoveUp;
-    private Animation enemyMoveDown;
-    private Animation enemyMoveLeft;
-    private Animation enemyMoveRight;
-    Texture tex = Game.getInstance();
-    //private Random random;
+public class Enemy extends Tank {
+    private static final Texture instance = Game.getInstance();
+    private static final BufferedImage[] texture = instance.enemy;
+    protected float velX = 5;
+    protected float velY = 5;
 
     public Enemy(float x, float y, Handler handler, ObjectId id) {
-        super(x, y, id);
-        this.handler = handler;
+        super(x, y, handler, id, texture);
         this.direction = ObjectDirection.Down;
-        this.setVelY(1);
-        this.health = 5;
-        //random = new Random();
-
-        enemyMoveUp = new Animation(5, tex.enemy[1], tex.enemy[2]);
-        enemyMoveDown = new Animation(5, tex.enemy[5], tex.enemy[6]);
-        enemyMoveLeft = new Animation(5, tex.enemy[3], tex.enemy[4]);
-        enemyMoveRight = new Animation(5, tex.enemy[7], tex.enemy[8]);
     }
 
+    @Override
     public void tick(LinkedList<GameObject> object) {
-        x += velX;
-        y += velY;
+        super.tick(object);
 
-        Collision(object);
+        GameObject target = findClosestTarget(object);
+        if (target != null) {
+            // 1. Check if we have clear line-of-sight:
+            if (hasClearView(target, object)) {
+                moveToTarget(target);
+                shoot();
+            } else {
+                // 2. Build collision grid from blocks
+                Handler handler = new Handler();
+                boolean[][] collisionGrid = buildCollisionGrid(handler);
 
-        enemyMoveUp.runAnimation();
-        enemyMoveDown.runAnimation();
-        enemyMoveLeft.runAnimation();
-        enemyMoveRight.runAnimation();
+                // 3. Convert Enemy’s (x, y) to row, col
+                int startCol = (int)(this.x / Game.TILE_SIZE);
+                int startRow = (int)(this.y / Game.TILE_SIZE);
 
-        if (health < 1) {
-            handler.removeObject(this);
-            handler.addObject(new Explosion(this.getX(), this.getY(), handler, 2));
-            SFX.BIGEXPLO.play();
-        }
-    }
+                // 4. Convert Target’s (x, y) to row, col
+                int targetCol = (int)(target.getX() / Game.TILE_SIZE);
+                int targetRow = (int)(target.getY() / Game.TILE_SIZE);
 
-    private void Collision(LinkedList<GameObject> object) {
-        for (int i = 0; i < handler.object.size(); i++) {
-            GameObject tempObject = handler.object.get(i);
+                // 5. Get path from A*
+                List<Node> path = AStarNode.aStarPath(startRow, startCol, targetRow, targetCol, collisionGrid);
 
-            if ((tempObject.getId() == ObjectId.Block) || (tempObject.getId() == ObjectId.Player)) {
-                //top collision
-                if (getBoundsTop().intersects(tempObject.getBounds())) {
-                    y = tempObject.getY() + 32;
-                    velX = -1;
-                    velY = 0;
-                    //velY = -1*((random.nextBoolean()) ? 1 : 0) + 1*((random.nextBoolean()) ? 1 : 0);
-                    //velX = -1*((random.nextBoolean()) ? 1 : 0) + 1*((random.nextBoolean()) ? 1 : 0);
-                }
-
-                //bottom collision
-                if (getBounds().intersects(tempObject.getBounds())) {
-                    y = tempObject.getY() - height;
-                    velY = 0;
-                    velX = 1;
-                }
-
-                //right collision
-                if (getBoundsRight().intersects(tempObject.getBounds())) {
-                    x = tempObject.getX() - width;
-                    velX = 0;
-                    velY = -1;
-                }
-
-                //left collision
-                if (getBoundsLeft().intersects(tempObject.getBounds())) {
-                    x = tempObject.getX() + 32;
-                    velX = 0;
-                    velY = 1;
+                // 6. Follow the path
+                if (!path.isEmpty()) {
+                    followPath(path);
+                } else {
+                    // if no path found, maybe default to your old logic or idle
                 }
             }
         }
     }
 
-    public void render(Graphics g) {
-        if (velX != 0) {
-            if (velX > 0) {
-                enemyMoveRight.drawAnimation(g, (int) x, (int) y, 64, 64);
-                this.direction = ObjectDirection.Right;
-            } else {
-                enemyMoveLeft.drawAnimation(g, (int) x, (int) y, 64, 64);
-                this.direction = ObjectDirection.Left;
+    private boolean[][] buildCollisionGrid(Handler handler) {
+        // Dimensions: for example, MAP_ROWS x MAP_COLS
+        boolean[][] grid = new boolean[Game.MAP_ROWS][Game.MAP_COLS];
+
+        // Go through every game object in the Handler
+        for (GameObject obj : handler.object) {
+            // If it's a collidable object that should block movement (like a Block)
+            if (obj instanceof Block) {
+                int col = (int) (obj.getX() / Game.TILE_SIZE);
+                int row = (int) (obj.getY() / Game.TILE_SIZE);
+
+                // Mark the cell as blocked, unless it's a special type you consider passable.
+                // For example, if type == 1 is a bush that doesn't block movement:
+                if (obj.type != 1) {
+                    grid[row][col] = true;  // 'true' = blocked
+                }
             }
-        } else if (velY != 0) {
-            if (velY > 0) {
-                enemyMoveDown.drawAnimation(g, (int) x, (int) y, 64, 64);
-                this.direction = ObjectDirection.Down;
+            // You can also mark other collidable objects here if you want them to block pathfinding.
+        }
+
+        return grid;
+    }
+
+    /**
+     * Moves the Enemy one step along the given path.
+     * You can adapt this to move continuously or tile by tile.
+     */
+    private void followPath(List<Node> path) {
+        // The first Node in 'path' is your current tile, so the second is the next tile
+        if (path.size() > 1) {
+            Node nextNode = path.get(1);  // 0 is current, 1 is next
+            float nextX = nextNode.col * Game.TILE_SIZE;
+            float nextY = nextNode.row * Game.TILE_SIZE;
+
+            float deltaX = nextX - this.x;
+            float deltaY = nextY - this.y;
+
+            // Move in x or y direction, or both if you allow diagonal
+            if (Math.abs(deltaX) > 2) {
+                setVelX(deltaX > 0 ? 1.0f : -1.0f);
             } else {
-                enemyMoveUp.drawAnimation(g, (int) x, (int) y, 64, 64);
-                this.direction = ObjectDirection.Up;
+                setVelX(1.0f);
+            }
+            if (Math.abs(deltaY) > 2) {
+                setVelY(deltaY > 0 ? 1.0f : -1.0f);
+            } else {
+                setVelY(1.0f);
+            }
+
+            // Update direction based on velocities
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                this.direction = (deltaX >= 0) ? ObjectDirection.Right : ObjectDirection.Left;
+            } else {
+                this.direction = (deltaY >= 0) ? ObjectDirection.Down : ObjectDirection.Up;
             }
         } else {
-            switch (this.direction) {
-                case Up:
-                    g.drawImage(tex.enemy[1], (int) x, (int) y, 64, 64, null);
-                    break;
-                case Down:
-                    g.drawImage(tex.enemy[5], (int) x, (int) y, 64, 64, null);
-                    break;
-                case Left:
-                    g.drawImage(tex.enemy[3], (int) x, (int) y, 64, 64, null);
-                    break;
-                case Right:
-                    g.drawImage(tex.enemy[7], (int) x, (int) y, 64, 64, null);
-                    break;
-                default:
-                    break;
-            }
+            // If path has only 1 node, it means we're basically on the goal
+            setVelX(1.0f);
+            setVelY(1.0f);
         }
     }
 
-    public Rectangle getBounds() {
-        return new Rectangle((int) ((int) x + (width / 2) - ((width / 2) / 2)), (int) ((int) y + (height / 2)), (int) width / 2, (int) height / 2);
+    private GameObject findClosestTarget(LinkedList<GameObject> objects) {
+        GameObject closest = null;
+        double minDistance = Double.MAX_VALUE;
+
+        for (GameObject obj : objects) {
+            if (obj instanceof Player || obj instanceof Eagle) {
+                double distance = Math.hypot(obj.getX() - x, obj.getY() - y);
+
+                if (distance < minDistance) {
+                    closest = obj;
+                    minDistance = distance;
+                }
+            }
+        }
+
+        return closest;
     }
 
-    public Rectangle getBoundsTop() {
-        return new Rectangle((int) ((int) x + (width / 2) - ((width / 2) / 2)), (int) y, (int) width / 2, (int) height / 2);
+    private boolean hasClearView(GameObject target, LinkedList<GameObject> objects) {
+        float startX = x + width / 2.0f;
+        float startY = y + height / 2.0f;
+        float targetX = target.getX() + target.getBounds().width / 2.0f;
+        float targetY = target.getY() + target.getBounds().height / 2.0f;
+
+        float dx = targetX - startX;
+        float dy = targetY - startY;
+        float distance = (float) Math.sqrt(dx * dx + dy * dy);
+
+        // Avoid dividing by zero
+        if (distance == 0) {
+            return true;
+        }
+
+        float stepX = dx / distance;
+        float stepY = dy / distance;
+
+        // Walk along the line in small increments
+        for (float i = 0; i < distance; i += 5) {
+            float checkX = startX + stepX * i;
+            float checkY = startY + stepY * i;
+
+            // Check collisions with each object
+            Handler handler = new Handler();
+            for (GameObject obj : new ArrayList<>(handler.object)) {
+                // Skip self and the intended targets (Player/Eagle)
+                if (obj == this || obj instanceof Player || obj instanceof Eagle) {
+                    continue;
+                }
+
+                // If any other object is in the path
+                if (obj.getBounds().contains(checkX, checkY)) {
+                    // If it’s any other block or obstacle => line of sight is blocked
+                    return false;
+                }
+            }
+        }
+
+        // If we never encountered a blocking object
+        return true;
     }
 
-    public Rectangle getBoundsRight() {
-        return new Rectangle((int) ((int) x + width - 5), (int) y + 5, (int) 5, (int) height - 10);
-    }
+    private void moveToTarget(GameObject target) {
+        float deltaX = target.getX() - x;
+        float deltaY = target.getY() - y;
 
-    public Rectangle getBoundsLeft() {
-        return new Rectangle((int) x, (int) y + 5, (int) 5, (int) height - 10);
-    }
-
-    public Rectangle getBoundsBody() {
-        return new Rectangle((int) x, (int) y, (int) width, (int) height);
+        if (Math.abs(deltaX) > Math.abs(deltaY)) {
+            direction = (deltaX >= 0) ? ObjectDirection.Right : ObjectDirection.Left;
+            this.velX = ((deltaX > 0) ? 1 : -1);
+            this.velY = (1);
+        } else {
+            direction = (deltaY >= 0) ? ObjectDirection.Down : ObjectDirection.Up;
+            this.velY = ((deltaY > 0) ? 1 : -1);
+            this.velX = (1);
+        }
     }
 }

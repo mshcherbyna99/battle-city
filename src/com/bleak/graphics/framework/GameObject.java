@@ -5,25 +5,29 @@ import java.awt.Rectangle;
 import java.util.LinkedList;
 
 public abstract class GameObject {
+    public static int width;
+    public static int height;
     protected float x;
     protected float y;
     protected float velX = 0;
     protected float velY = 0;
     protected ObjectId id;
-    protected ObjectDirection direction;
+    protected ObjectDirection direction = ObjectDirection.Undefined;
     protected boolean falling = true;
     protected boolean jumping = false;
     public int type;
-    public int angle;
     public int damage;
     public int health;
+
+    public GameObject(float x, float y, ObjectId id, int type) {
+        this(x, y, id);
+        this.type = type;
+    }
 
     public GameObject(float x, float y, ObjectId id) {
         this.x = x;
         this.y = y;
         this.id = id;
-        this.direction = ObjectDirection.Undefined;
-        this.angle = 0;
     }
 
     public abstract void tick(LinkedList<GameObject> object);

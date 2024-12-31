@@ -21,6 +21,7 @@ public enum SFX {
     SFX(String soundFileName) {
         try {
             URL url = this.getClass().getClassLoader().getResource(soundFileName);
+            assert url != null;
             AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(url);
 
             clip = AudioSystem.getClip();
@@ -42,6 +43,10 @@ public enum SFX {
 
             clip.setFramePosition(0);
             clip.start();
+        } else {
+            if (clip.isRunning()) {
+                clip.stop();
+            }
         }
     }
 

@@ -8,31 +8,30 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
+import java.io.Serial;
 import java.util.Random;
 
 import com.bleak.graphics.framework.KeyInput;
 import com.bleak.graphics.framework.ObjectId;
 import com.bleak.graphics.framework.Texture;
-import com.bleak.graphics.objects.Block;
-import com.bleak.graphics.objects.Enemy;
+import com.bleak.graphics.objects.*;
 //import com.bleak.graphics.objects.Coin;
-import com.bleak.graphics.objects.Player;
 
 
 public class Game extends Canvas implements Runnable {
+    public static int MAP_ROWS, MAP_COLS, TILE_SIZE;
+    @Serial
     private static final long serialVersionUID = 1L;
     private boolean running = false;
-    private Thread thread;
-    private int rateFPS = 0;
-    private int rateTicks = 0;
     public static int WIDTH, HEIGHT;
     public int SCORE = 0;
-    private BufferedImage level = null;
+    private int rateFPS;
+    private int rateTicks;
     Handler handler;
     Camera cam;
     static Texture tex;
-    private int fontSize = 32;
-    private Font mainFont = new Font("TimesRoman", Font.PLAIN, fontSize);
+    private final int fontSize = 32;
+    private final Font mainFont = new Font("TimesRoman", Font.PLAIN, fontSize);
     Random rand = new Random();
 
     private void init() {
@@ -44,15 +43,13 @@ public class Game extends Canvas implements Runnable {
         cam = new Camera(0, 0);
         BufferedImageLoader loader = new BufferedImageLoader();
 
-        level = loader.loadImage("/gfx/level.png"); // level loading
+        BufferedImage level = loader.loadImage("/gfx/level.png"); // level loading
+
+        TILE_SIZE = 64;
+        MAP_ROWS = level.getHeight();
+        MAP_COLS = level.getWidth();
+
         LoadImageLevel(level);
-
-        System.out.println("Blocks: " + handler.countObject(ObjectId.Block));
-        System.out.println("Coins: " + handler.countObject(ObjectId.Coin));
-        System.out.println("Players: " + handler.countObject(ObjectId.Player));
-
-        //handler.addObject(new Player(100, 100, handler, ObjectId.Player));
-        //handler.CreateLevel();
 
         this.addKeyListener(new KeyInput(handler));
     }
@@ -63,13 +60,11 @@ public class Game extends Canvas implements Runnable {
         }
 
         running = true;
-        thread = new Thread(this);
+        Thread thread = new Thread(this);
         thread.start();
     }
 
     public void run() {
-        System.out.println("Thread has begun");
-
         init();
         this.requestFocus();
 
@@ -129,9 +124,7 @@ public class Game extends Canvas implements Runnable {
 
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        ;/////////////////////////////////
-        ;//      D R A W   H E R E      //
-        ;/////////////////////////////////
+
         g.setColor(Color.black);
         g.fillRect(0, 0, getWidth(), getHeight());
         g.drawImage(tex.sky[0], 0, 0, WIDTH, HEIGHT, null);
@@ -141,13 +134,13 @@ public class Game extends Canvas implements Runnable {
         g2d.translate(-cam.getX(), -cam.getY());
 
         g.setFont(mainFont);
-        /*g.setColor(Color.DARK_GRAY);
+        g.setColor(Color.DARK_GRAY);
         g.drawString("FPS: " + rateFPS + " TICKS: " + rateTicks, 36, 68);
         g.setColor(Color.white);
         g.drawString("FPS: " + rateFPS + " TICKS: " + rateTicks, 32, 64);
         g.setFont(mainFont);
         g.setColor(Color.blue);
-        g.drawString("Explosions: "+handler.countObject(ObjectId.Explosion), 50, 50);*/
+        g.drawString("Explosions: "+handler.countObject(ObjectId.Explosion), 50, 50);
         g.dispose();
 
         bs.show();
@@ -165,34 +158,92 @@ public class Game extends Canvas implements Runnable {
                 int red = (pixel >> 16) & 0xff;
                 int green = (pixel >> 8) & 0xff;
                 int blue = (pixel) & 0xff;
+                int blocksHeight = Block.height;
+                int blocksWidth = Block.width;
+                int playerHeight = Player.height;
+                int playerWidth = Player.width;
+                int enemyHeight = Enemy.height;
+                int enemyWidth = Enemy.width;
+                int coinHeight = Coin.height;
+                int coinWidth = Coin.width;
+                int eagleHeight = Eagle.height;
+                int eagleWidth = Eagle.width;
 
                 if (red == 255 && green == 255 && blue == 255) {
-                    handler.addObject(new Block(xx * 32, yy * 32, 0, ObjectId.Block));// concrete
+                    handler.addObject(
+                        new Block(
+                            xx * blocksHeight,
+                            yy * blocksWidth,
+                            BlockType.Concrete.getId(),
+                            ObjectId.Block
+                        )
+                    );
                 }
 
                 if (red == 255 && green == 0 && blue == 0) {
-                    handler.addObject(new Block(xx * 32, yy * 32, 1, ObjectId.Block));// bricks
+                    handler.addObject(
+                        new Block(
+                            xx * blocksHeight,
+                            yy * blocksWidth,
+                            BlockType.Brick.getId(),
+                            ObjectId.Block
+                        )
+                    );
                 }
 
                 if (red == 0 && green == 255 && blue == 0) {
-                    handler.addObject(new Block(xx * 32, yy * 32, 2, ObjectId.Block));// grass
+                    handler.addObject(
+                        new Block(
+                            xx * blocksHeight,
+                            yy * blocksWidth,
+                            BlockType.Grass.getId(),
+                            ObjectId.Block
+                        )
+                    );
                 }
 
                 if (red == 0 && green == 255 && blue == 255) {
-                    handler.addObject(new Block(xx * 32, yy * 32, 3, ObjectId.Block));// water
+                    handler.addObject(
+                        new Block(
+                            xx * blocksHeight,
+                            yy * blocksWidth,
+                            BlockType.Water.getId(),
+                            ObjectId.Block
+                        )
+                    );
                 }
 
                 if (red == 0 && green == 0 && blue == 255) {
-                    handler.addObject(new Player(xx * 32, yy * 32, handler, ObjectId.Player));// player
+                    handler.addObject(
+                        new Player(
+                            xx * playerHeight,
+                            yy * playerWidth,
+                            handler,
+                            ObjectId.Player
+                        )
+                    );
                 }
 
                 if (red == 255 && green == 0 && blue == 255) {
-                    handler.addObject(new Enemy(xx * 32, yy * 32, handler, ObjectId.Enemy));// enemy
+                    handler.addObject(
+                        new Enemy(
+                            xx * enemyHeight,
+                            yy * enemyWidth,
+                            handler,
+                            ObjectId.Enemy
+                        )
+                    );
                 }
 
-                //if (red == 255 && green == 255 && blue == 0) {
-                //    handler.addObject(new Coin(xx*32, yy*32, ObjectId.Coin));
-                //}
+                if (red == 255 && green == 255 && blue == 0) {
+                    handler.addObject(
+                        new Coin(
+                            xx*32,
+                            yy*32,
+                            ObjectId.Coin
+                        )
+                    );
+                }
             }
         }
     }

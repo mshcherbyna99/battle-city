@@ -2,65 +2,51 @@ package com.bleak.graphics.framework;
 
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Set;
 
 import com.bleak.graphics.objects.Bullet;
+import com.bleak.graphics.objects.Tank;
 import com.bleak.graphics.test.Handler;
 import com.bleak.graphics.test.SFX;
 
 public class KeyInput extends KeyAdapter {
     Handler handler;
+    private final Set<Integer> pressedKeys = new HashSet<>();
 
     public KeyInput(Handler handler) {
         this.handler = handler;
     }
 
+    @Override
     public void keyPressed(KeyEvent e) {
         int key = e.getKeyCode();
+        pressedKeys.add(key);
 
-        for (int i = 0; i < handler.object.size(); i++) {
-            GameObject tempObject = handler.object.get(i);
-            if (tempObject.getId() == ObjectId.Player) {
+        for (GameObject tempObject : new ArrayList<>(handler.object)) {
+            if (tempObject.getId() == ObjectId.Player && tempObject instanceof Tank player) {
                 if (key == KeyEvent.VK_D) {
-                    tempObject.setVelX(1);
-                    tempObject.setVelY(0);
-                    //tempObject.angle = tempObject.angle + 1;
+                    player.setVelX(1);
+                    player.setVelY(0);
+                    player.direction = ObjectDirection.Right;
+                } else if (key == KeyEvent.VK_A) {
+                    player.setVelX(-1);
+                    player.setVelY(0);
+                    player.direction = ObjectDirection.Left;
+                } else if (key == KeyEvent.VK_S) {
+                    player.setVelY(1);
+                    player.setVelX(0);
+                    player.direction = ObjectDirection.Down;
+                } else if (key == KeyEvent.VK_W) {
+                    player.setVelY(-1);
+                    player.setVelX(0);
+                    player.direction = ObjectDirection.Up;
                 }
-                if (key == KeyEvent.VK_A) {
-                    tempObject.setVelX(-1);
-                    tempObject.setVelY(0);
-                    //tempObject.angle = tempObject.angle - 1;
-                }
-                if (key == KeyEvent.VK_S) {
-                    tempObject.setVelY(1);
-                    tempObject.setVelX(0);
-                }
-                if (key == KeyEvent.VK_W) {
-                    tempObject.setVelY(-1);
-                    tempObject.setVelX(0);
-                }
+
                 if (key == KeyEvent.VK_SPACE) {
-                    switch (tempObject.direction) {
-                        case Up:
-                            handler.addObject(new Bullet(tempObject.getX() + 30, tempObject.getY() + 30, 0, -4, handler, ObjectId.Bullet, ObjectDirection.Up));
-                            break;
-                        case Down:
-                            handler.addObject(new Bullet(tempObject.getX() + 30, tempObject.getY() + 30, 0, 4, handler, ObjectId.Bullet, ObjectDirection.Down));
-                            break;
-                        case Left:
-                            handler.addObject(new Bullet(tempObject.getX() + 30, tempObject.getY() + 30, -4, 0, handler, ObjectId.Bullet, ObjectDirection.Left));
-                            break;
-                        case Right:
-                            handler.addObject(new Bullet(tempObject.getX() + 30, tempObject.getY() + 30, 4, 0, handler, ObjectId.Bullet, ObjectDirection.Right));
-                            break;
-                        default:
-                            break;
-                    }
-                    //handler.addObject(new Bullet(tempObject.getX()+32-4, tempObject.getY(), 0, -5, handler, ObjectId.Bullet));
-                    //sndSystem.PlaySound(sndSystem.sndShot);
-                    SFX.SHOOT.play();
+                    player.shoot();
                 }
-                if (tempObject.angle > 360) tempObject.angle = 0;
-                if (tempObject.angle < 0) tempObject.angle = 360;
             }
         }
 
@@ -74,13 +60,16 @@ public class KeyInput extends KeyAdapter {
 
         for (int i = 0; i < handler.object.size(); i++) {
             GameObject tempObject = handler.object.get(i);
-            if (tempObject.getId() == ObjectId.Player) {
-                if (key == KeyEvent.VK_D) tempObject.setVelX(0);
-                if (key == KeyEvent.VK_A) tempObject.setVelX(0);
-                if (key == KeyEvent.VK_S) tempObject.setVelY(0);
-                if (key == KeyEvent.VK_W) tempObject.setVelY(0);
 
+            if (tempObject.getId() == ObjectId.Player) {
+                if (!pressedKeys.contains(KeyEvent.VK_D) && !pressedKeys.contains(KeyEvent.VK_A)) {
+                    tempObject.setVelX(0);
+                }
+                if (!pressedKeys.contains(KeyEvent.VK_W) && !pressedKeys.contains(KeyEvent.VK_S)) {
+                    tempObject.setVelY(0);
+                }
             }
         }
+        pressedKeys.remove(key);
     }
 }

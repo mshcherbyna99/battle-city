@@ -11,42 +11,40 @@ import com.bleak.graphics.test.Animation;
 import com.bleak.graphics.test.Game;
 
 public class Block extends GameObject {
+    public static int spriteWidth = 16;
+    public static int spriteHeight = 16;
+    public static int width = 32;
+    public static int height = 32;
+    public final int type;
     Texture tex = Game.getInstance();
-    private Animation waterAnimation = new Animation(30, tex.water[0], tex.water[1], tex.water[2]);
-    //private int type;
+    private final Animation waterAnimation = new Animation(
+        30,
+        tex.water[0],
+        tex.water[1],
+        tex.water[2]
+    );
 
     public Block(float x, float y, int type, ObjectId id) {
-        super(x, y, id);
+        super(x, y, id, type);
+
         this.type = type;
     }
 
     public void tick(LinkedList<GameObject> object) {
-        if (type == 3)
+        if (type == BlockType.Water.getId()) {
             waterAnimation.runAnimation();
+        }
     }
 
     public void render(Graphics g) {
-        //0 - concrete
-        //1 - bricks
-        //2 - grass
-        //3 - water
-
-        if (this.type != 3) {
-            g.drawImage(tex.block[this.type], (int) x, (int) y, 32, 32, null);
+        if (this.type != BlockType.Water.getId()) {
+            g.drawImage(tex.block[this.type], (int)x, (int)y, width, height, null);
         } else {
-            waterAnimation.drawAnimation(g, (int) x, (int) y, 32, 32);
+            waterAnimation.drawAnimation(g, (int)x, (int)y, width, height);
         }
-
-        /*if(this.type == 0) //dirt block
-            g.drawImage(tex.block[0], (int) x, (int) y, 32, 32, null);
-        if(this.type == 1) //grass block
-            g.drawImage(tex.block[1], (int) x, (int) y, 32, 32, null);*/
-
-        /*g.setColor(Color.green);
-        g.drawRect((int) x, (int) y, 32, 32); */
     }
 
     public Rectangle getBounds() {
-        return new Rectangle((int) x, (int) y, 32, 32);
+        return new Rectangle((int)x, (int)y, width, height);
     }
 }
